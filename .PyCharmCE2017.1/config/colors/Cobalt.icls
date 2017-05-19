@@ -1,8 +1,6 @@
 <scheme name="Cobalt" version="142" parent_scheme="Default">
   <option name="FONT_SCALE" value="1.25" />
   <option name="EDITOR_FONT_SIZE" value="20" />
-  <option name="CONSOLE_FONT_NAME" value="DejaVu Sans Mono" />
-  <option name="CONSOLE_FONT_SIZE" value="12" />
   <option name="EDITOR_FONT_NAME" value="DejaVu Sans Mono" />
   <colors>
     <option name="ADDED_LINES_COLOR" value="295622" />
@@ -547,6 +545,11 @@
     <option name="PARAMETER_ATTRIBUTES">
       <value>
         <option name="FOREGROUND" value="bfa4a4" />
+      </value>
+    </option>
+    <option name="PY.BUILTIN_NAME">
+      <value>
+        <option name="FOREGROUND" value="feff2e" />
       </value>
     </option>
     <option name="PY.FUNC_DEFINITION">

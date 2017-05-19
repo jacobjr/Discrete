@@ -95,7 +95,7 @@ def generateAccuracies(instances, folds, i0, j0, k0, n0):
                     if act:
                         path = str(i) + "-" + str(j) + "-" + str(k) + "-" + str(
                             n) + ".data"  # Path creation for imputed file
-                        acc = classification(i, j, k, n, range(0, len(algorithms)),
+                        acc = classification(i, j, k, n, [0,1,2,3,4,5,7,8,9,10,11,12,13],
                                              folds)  # Classification algorithms execution (see classify.py)
                         for m in range(0, len(algorithms)):
                             # Write in Output.csv

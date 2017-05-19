@@ -12,10 +12,11 @@ from sklearn.svm import SVC
 from sklearn.naive_bayes import GaussianNB
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn import tree
+import datetime
 import os
 import warnings
 from sklearn import preprocessing
-from sklearn.metrics import f1_score
+from sklearn.metrics import accuracy_score
 from inoutmd import read
 import numpy as np
 os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
@@ -48,9 +49,10 @@ def classification(i, j, k, n, classifiers, folds):
         if not res:
             res = classify(i, j, k, n, c, folds)
         else:
-            res.append([classify(i, j, k, n, c, folds)[1]])  # Classify
+            res.append(classify(i, j, k, n, c, folds)[1])  # Classify
     res = np.array(res)
-    np.savetxt("P-{0}-{1}-{2}-{3}".format(i, j, k, n), res)
+    np.savetxt("Classifications/{0}-{1}-{2}-{3}.data".format(str(i), str(j), str(k), str(n)), res, fmt='%i')
+
     return res
 
 
@@ -81,13 +83,13 @@ def classify(i, j, k, n, c, folds):
         x = read("Data/{0}-{1}-{2}-{3}.data".format(str(i), str(j), str(k), "0"), delimiter=",")
         size = x.shape[0]
         feature_columns = [tf.contrib.layers.real_valued_column("", dimension=x.shape[1]-1)]
-        clf = tf.contrib.learn.DNNClassifier(feature_columns=feature_columns, hidden_units=[size, int(size/2), int(size/2)], n_classes=4)
+        clf = tf.contrib.learn.DNNClassifier(feature_columns=feature_columns, hidden_units=[size, int(size/2), int(size/2)], n_classes=len(set(x[:, -1])))
     #elif c == 5:
         #clf = tf.contrib.learn.DNNClassifier(hidden_units=[10, 20, 10])
     elif c == 6-1:
         clf = SVC(kernel='linear', C=1.0, tol=0.001, probability=True)
     elif c == 7-1:
-        clf = SVC(kernel='poly', C=1.0, tol=0.001, probability=True)
+        clf = SVC(kernel='poly', C=1.0, tol=0.01, probability=False, degree=2, cache_size=20000)
     elif c == 8-1:
         clf = SVC(kernel='rbf', C=1.0, gamma=0.10000000000000001, coef0=0, shrinking=True, probability=True)#RBFN
     elif c == 9-1:
@@ -156,7 +158,7 @@ def classify(i, j, k, n, c, folds):
 
         full_predictions += list(predictions)
         full_y += y_test.tolist()
-
+    #print(accuracy_score(full_y, full_predictions))
     return [full_y, full_predictions]
 #a = classification(0, 0, 0, 5, range(0, 6), 5)
 #print(a)
