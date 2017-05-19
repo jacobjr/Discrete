@@ -12,30 +12,63 @@ from sklearn.svm import SVC
 from sklearn.naive_bayes import GaussianNB
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn import tree
-
+import os
+import warnings
 from sklearn import preprocessing
-from sklearn.metrics import accuracy_score
-from sklearn.cross_validation import StratifiedKFold
-from sklearn.neural_network import MLPClassifier
+from sklearn.metrics import f1_score
 from inoutmd import read
 import numpy as np
-from random import choice
+os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
+import tensorflow as tf
+
+warnings.filterwarnings("ignore")
+tf.logging.set_verbosity(tf.logging.ERROR)
+
 
 # Principal classification function, given a path where the DB is, an array of classifiers, and an amount of folds, it returns
 # an array of accuracies, with length = length(classifiers)
 
 
 def classification(i, j, k, n, classifiers, folds):
-    res = []
+    """
+    This function takes as input path indices and a list of classifier indices and returns a list of
+    accuracies generated from the file represented by the indices and each one of the classifiers.
+
+    :param i: DB index
+    :param j: MDT index
+    :param k: Instance index
+    :param n: IM index
+    :param classifiers: list of classifier indices (usually range(0, 15))
+    :param folds: Number of folds. Fixed beforehand.
+    :return: List of accuracies generated from the different combinations of the previous parameters
+    """
+    res = None
 
     for c in classifiers:  # Foreach classifier,
-        res.append(classify(i, j, k, n, c, folds))  # Classify
+        if not res:
+            res = classify(i, j, k, n, c, folds)
+        else:
+            res.append([classify(i, j, k, n, c, folds)[1]])  # Classify
+    res = np.array(res)
+    np.savetxt("P-{0}-{1}-{2}-{3}".format(i, j, k, n), res)
     return res
 
 
 def classify(i, j, k, n, c, folds):
-    
-    # ##############Selected classifier ################# #
+    """
+    This function reads the file represented by i, j, k, and n indices and generates an accuracy using "folds" folds
+    and the classifier indexed by c.
+    :param i: DB index
+    :param j: MDT index
+    :param k: Instance index
+    :param n: IM index
+    :param c: classifier index
+    :param folds: Number of folds. Fixed beforehand.
+    :return: Accuracy generated from the use of classifier c on the data described in the file represented by the
+    indices.
+    """
+
+    # ##############Select classifier ################# #
     if c == 0:
         clf = LogisticRegression(penalty="l1")
     elif c == 1:
@@ -45,82 +78,85 @@ def classify(i, j, k, n, c, folds):
     elif c == 3:
         clf = QuadraticDiscriminantAnalysis(reg_param=0.01)
     elif c == 4:
-        clf = MLPClassifier(hidden_layer_sizes=(100, 100), activation="logistic", solver="sgd", learning_rate="adaptive")
-    elif c == 5:
-        clf = SVC(kernel='linear', C=1.0, tol=0.001, gamma=0.01, coef0=0, probability=True)
-    elif c == 6:
+        x = read("Data/{0}-{1}-{2}-{3}.data".format(str(i), str(j), str(k), "0"), delimiter=",")
+        size = x.shape[0]
+        feature_columns = [tf.contrib.layers.real_valued_column("", dimension=x.shape[1]-1)]
+        clf = tf.contrib.learn.DNNClassifier(feature_columns=feature_columns, hidden_units=[size, int(size/2), int(size/2)], n_classes=4)
+    #elif c == 5:
+        #clf = tf.contrib.learn.DNNClassifier(hidden_units=[10, 20, 10])
+    elif c == 6-1:
+        clf = SVC(kernel='linear', C=1.0, tol=0.001, probability=True)
+    elif c == 7-1:
+        clf = SVC(kernel='poly', C=1.0, tol=0.001, probability=True)
+    elif c == 8-1:
         clf = SVC(kernel='rbf', C=1.0, gamma=0.10000000000000001, coef0=0, shrinking=True, probability=True)#RBFN
-    elif c == 7:
+    elif c == 9-1:
         clf = GaussianNB() 
-    elif c == 8:
+    elif c == 10-1:
         clf = GradientBoostingClassifier(n_estimators=100, max_depth=11, subsample=1.0)
-    elif c == 9:
+    elif c == 11-1:
         clf = RandomForestClassifier(n_estimators=10)
-    elif c == 10:
+    elif c == 12-1:
         clf = tree.DecisionTreeClassifier()  # CART, similar to c4.5
-    elif c == 11:
+    elif c == 13-1:
         clf = KNeighborsClassifier(n_neighbors=1)
-    elif c == 12:
+    elif c == 14-1:
         clf = KNeighborsClassifier(n_neighbors=3)
     #######################################################################
 
+    full_predictions = []
+    full_y = []
     for fold in range(0, folds):
-        path = str(i) + "-" + str(j) + "-" + str(k) + "-" + str(fold) + "-" + str(n) + ".data"
+        # For each stratified fold, we have one file. We read it.
+        path = "Data/" + str(i) + "-" + str(j) + "-" + str(k) + "-" + str(fold) + "-" + str(n) + ".data"
         x = read(path)
 
         # Separate class (always in last position, watch impute.py)
         y = x[:, len(x[0, :])-1]
         x = np.delete(x, len(x[0, :])-1, 1)
 
-        lim = x.shape[0] / folds * (folds - 1)
-        x_train = x[:lim,:]
-        x_test = x[lim:,:]
-        y_train = y[:lim]
-        y_test = y[lim:]
-
         # If class is string, transform to numeric labels
-        if isinstance(y[0], basestring):
+        if isinstance(y[0], str):
             le = preprocessing.LabelEncoder()
             le.fit(y)
             y = le.transform(y)
+        # Set where the limit between the train and testing is. Remember that we always write first the training
+        # part and then the testing part.
 
-        model = clf.fit(x_train, y_train)  # Model creation
-        predictions = model.predict(x_test)
-        
-    # Classification
-    for i, (train, test) in enumerate(cv):
+        lim = int(x.shape[0] / folds * (folds - 1))
+        x_train = x[:lim,:]
+        x_test = x[lim:,:]
+        y_train = y[:lim].astype(int)
+        y_test = y[lim:].astype(int)
 
-        xaux = x[train]
-        taux = x[test]
-                
-        model = clf.fit(xaux, y[train])  # Model creation
-        probas = model.predict_proba(taux)  # Classify
+        def get_train_inputs():
+            x = tf.constant(x_train)
+            y = tf.constant(y_train)
 
-        if np.isnan(probas[:, 1]).any():
-            print("Classifier error:", c)
+            return x, y
 
-        # We put in res the class with the most probability
-        res = []
-        
-        # Class with most probability (same probability problem)
-        for k in range(0,probas.shape[0]):
-            max = 0
-            maxi = []
-            for j in range(0,probas.shape[1]):
-                
-                # If more than one class has the same probability, random selection between them
-                if probas[k, j] > max:  # If the jth probability is larger than the max observed, actualize max, and reinitialize array maxi
-                    max = probas[k, j]
-                    maxi = [j]
-                elif probas[k, j] == max:  # If the jth probability matches the max observed, add j to the array
-                    maxi.append(j)
-            if len(maxi) == 0:  # If len is 0, an error happened, -1 as non existing class
-                res.append(-1)
-            else:  # Else, correct classifying, and random choice between all the max probabilities
-                res.append(choice(maxi))
-       
-        # Accuracy for one single fold
-        acc = accuracy_score(y[test], res)
-        # Accumulated accuracy
-        acc1 += acc*len(test)/(len(train)+len(test))
-    return acc1
+        def get_test_inputs():
+            x = tf.constant(x_test)
+            y = tf.constant(y_test)
+
+            return x, y
+
+        def get_predict_input():
+            x = tf.constant(x_test)
+
+            return x
+
+        if c == 4:
+            model = clf.fit(input_fn=get_train_inputs, steps=20000)  # Model creation
+            predictions = model.predict(input_fn=get_predict_input)
+            # acc = clf.evaluate(input_fn=get_test_inputs, steps=1)["accuracy"]
+        else:
+            model = clf.fit(x_train, y_train)  # Model creation
+            predictions = model.predict(x_test)
+
+        full_predictions += list(predictions)
+        full_y += y_test.tolist()
+
+    return [full_y, full_predictions]
+#a = classification(0, 0, 0, 5, range(0, 6), 5)
+#print(a)

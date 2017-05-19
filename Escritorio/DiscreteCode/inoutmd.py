@@ -11,6 +11,8 @@ import pandas as pd
 import random
 import copy
 import os
+from sklearn import preprocessing
+from sklearn.model_selection import StratifiedKFold
 
 percent = 7  # This work considers introducing 7% of missing values in MD free DBs
 
@@ -33,12 +35,12 @@ def insertMuOV(data):
     y = data.shape[1]
     obs = []
     y1 = random.sample(range(0, y), 3)  # Select the features losing their values
-    while len(obs) < (percent*x*y/100)//3:
+    while len(obs) < (percent*x*y/100)/3:
         obs.append(random.randint(0, x-1))  # Since the "causative" is unobserved, the observations missing their values are selected randomly
     for i in range(0, len(obs)):  # For the selected observations (above)
         for j in range(0, len(y1)):  # For the selected features
             data[obs[i], y1[j]] = "NaN"  # "NaN" assigning
-         
+
     return data
 
 
@@ -47,15 +49,15 @@ def insertMIV(data):
     x = data.shape[0]
     y = data.shape[1]
     obs = []
-    y1 = random.sample(range(0, y), 4)  # Select which features will lose values
+    y1 = random.sample(range(0, y), 3)  # Select which features will lose values
     for i in range(0, len(y1)):
-    
+
         # Auxiliary variable, to select the observations losing values, without modifying them yet.
         auxy = copy.copy(data[:, y1[i]])
-        while len(obs) < (percent*y*x/100)//4:
+        while len(obs) < (percent*y*x/100)/3:
             obs.append(np.argmin(auxy))
             auxy[obs[len(obs)-1]] = 999999
-        
+
         for j in range(0, len(obs)):
             data[obs[j], y1[i]] = "NaN"  # "NaN" assigning for these positions
         obs = []
@@ -68,70 +70,125 @@ def insertMAR(data):
     y = data.shape[1]
     obs = []
     y1 = random.sample(range(0, y), 4)  # First element in y1 will be the "causative" variable, remaining three will lose values
-    
+
     # Auxiliary causative variable, to select the observations losing values, without modifying the causative.
     auxy = copy.copy(data[:, y1[0]])
-    while len(obs) < (percent*x*y/100)//3:
+    while len(obs) < (percent*x*y/100)/3:
         obs.append(np.argmin(auxy))
         auxy[obs[len(obs)-1]] = 999999
-    
+
     for i in range(0, len(obs)):
         for j in range(1, len(y1)):
             data[obs[i], y1[j]] = "NaN"  # "NaN" assigning
-         
+
     return data
 
 
+def is_number(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+
+
 # ####################### In/Out functions ######################################
+
+# Simply read. Used to read imputed files.
+def read(path, delimiter=","):
+
+    """
+    This function takes a path as an argument and returns the information in matrix form. String variables are
+    converted to labels.
+
+    :param path: path of the file to be read.
+    :return: Read file
+    """
+    dir = os.path.dirname(__file__)
+    x = np.genfromtxt(dir + "/" + path, delimiter=delimiter, dtype=str)
+    le = preprocessing.LabelEncoder()
+    # labels = []
+    for i in range(0, x.shape[1]):
+        if not is_number(x[0, i]):
+            le.fit(x[:, i])
+            x[:, i] = (le.transform(x[:, i])).astype("float32")
+            # if clas and (not clas == i):
+                # labels += [i]
+
+    x = x.astype("float32")
+    """if not labels == []:
+        oh = preprocessing.OneHotEncoder(categorical_features=labels, sparse=False)
+        x = oh.fit_transform(x)
+    """
+    return x
     
 
 # if introduceMD==1, reads data in path, separates class atribute, introduces MDT type MD and writes features and class together.
 # if introduceMD==0 reads path and returns classes and attributes separated.
 
-# The firts functionality is used for the missing data introduction process. After converting some values to "NaN", it writes them to be read by the imputation processes
+# The first functionality is used for the missing data introduction process. After converting some values to "NaN", it writes them to be read by the imputation processes
 # The second one is unused right now
 
-def getMDfiles(path, index, MDT, k, clas, introduceMD):
-    dir = os.path.dirname(__file__)
+def getMDfiles(path, index, MDT, k, clas, introduceMD, seed):
 
-    x = pd.read_csv(dir + "/Data1/" + path, header=None)
-    x = x.as_matrix()
-    
+    """
+
+    :param path: path of the file in which the data to be partially erased can be found
+    :param index: DB index
+    :param MDT: MDT index
+    :param k: instance index
+    :param clas: variable index where the class can be found
+    :param introduceMD: Whether MD is going to be introduced. See description above.
+    :param seed: Seed for random initialization
+    :return: Writes 5 versions of the dataset with different MD combinations, aiming for a stratified 5-fold
+    cross-validation.
+    """
+
+    random.seed(seed)
+
+    x = read("Data1/" + path)
+
     # Assign the class to other variable.
     y = x[:, clas]
     x = np.delete(x, clas, 1)
+    i = 0
 
-    x = x.astype(float)
-    if introduceMD == 1:
-        # Insert MD
-        if MDT % 4 == 0:
-            x = insertMAR(x)
-        elif MDT % 4 == 1:
-            x = insertMCAR(x)
-        elif MDT % 4 == 2:
-            x = insertMuOV(x)
-        elif MDT % 4 == 3:
-            x = insertMIV(x)
-        
-        # Write file for R imputation methods
+    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=seed)
 
-        x = np.column_stack((x,y))
+    for train_index, test_index in skf.split(x, y):
+        # Separate
+        x_train = x[train_index]
+        x_test = x[test_index]
+        y_train = y[train_index]
+        y_test = y[test_index]
+
+        if introduceMD == 1:
+            # Insert MD
+            if MDT % 4 == 0:
+                x_train = insertMAR(x_train)
+                x_test = insertMAR(x_test)
+            elif MDT % 4 == 1:
+                x_train = insertMCAR(x_train)
+                x_test = insertMCAR(x_test)
+            elif MDT % 4 == 2:
+                x_train = insertMuOV(x_train)
+                x_test = insertMuOV(x_test)
+            elif MDT % 4 == 3:
+                x_train = insertMIV(x_train)
+                x_test = insertMIV(x_test)
+
+        # We always write first the training part and hen the testing part.
+        x_tot = np.concatenate((x_train, x_test), axis=0)
+        y_tot = np.concatenate((y_train, y_test))
+
+        x_tot = np.column_stack((x_tot,y_tot))
 
         aux = np.array(path.split("."))
  
-        npath = "Data/" + str(index) + "-" + str(MDT) + "-" + str(k) + "." + aux[len(aux)-1]
-    
-        df = pd.DataFrame(x)
+        npath = "Data/" + str(index) + "-" + str(MDT) + "-" + str(k) + "-" + str(i) + "." + aux[len(aux)-1]
+        i += 1
+        df = pd.DataFrame(x_tot)
 
         df.to_csv(npath, header = False, index = False, na_rep = "NaN")
 
     return x, y
-        
-
-# Simply read. Used to read imputed files.
-def read(path):
-    dir = os.path.dirname(__file__)
-    x = pd.read_csv(dir + "/" + path, header=None, delimiter=",")
-    x = x.as_matrix()
-  
-    return x

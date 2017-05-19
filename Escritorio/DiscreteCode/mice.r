@@ -1,50 +1,71 @@
 args<-commandArgs(TRUE)
 #install.packages("mice", repos="http://cran.rstudio.com/")
 read1<-function(dir, path){
-  data<- read.csv(paste(dir, path, sep=""), header = FALSE, stringsAsFactors=FALSE, na.strings = "NaN", sep = " ")
+  data<- read.csv(paste(dir, path, sep=""), header = FALSE, stringsAsFactors=FALSE, na.strings = "NaN", sep = ",")
   data<-matrix(unlist(data), ncol = ncol(data))
   data[is.nan(data)]<-NA
-  
-  malas<-c()
-  for(i in 1:length(data[1,])){
-    if(2 > length(levels(factor(data[,i]))))
-      malas[length(malas)+1]<-i
-  }
-  print(malas)
-  if(length(malas)>0)
-    data<-data[,-malas]
   
   return(data)
 }
 
-write1<-function(path, method, part, data){
-  
-  dir<-strsplit(path, "[.]")
-  dir = paste(unlist(dir)[1],"-", method, ".", unlist(dir)[2], sep = "")
-  write(t(data), dir, ncolumns = ncol(data), sep = ",")
+write1<-function(path, method, data){
+  write(t(data), path, ncolumns = ncol(data), sep = ",")
 }
 
-
-mice1<-function(dir, path, p, data){
+mice1<-function(dir, path, p, data, k){
   
   suppressPackageStartupMessages(library(mice))
   
-  x<-length(data[,1])
+  set.seed(k)
   
   class<-data[,length(data[1,])]
   
   data<-data[,-length(data[1,])]
   
+  malas<-c()
+  values<-c()
+  for(i in 1:length(data[1,])){
+    if(2 > length(levels(factor(data[,i]))))
+      malas[length(malas)+1]<-i
+    values[length(values)]<-levels(factor(data[,i]))[1]
+  }
+  
+  print(malas)
+  if(length(malas)>0)
+    data<-data[,-malas]
+  
+  x<-length(data[,1])
+  
   data<-matrix(as.numeric(data), nrow = x)
   
-  imp <- mice(data, print = FALSE)
-  imp <- complete(imp)
+  tryCatch(
+    imp <- complete(mice(data, print = FALSE, seed = k)),
+    error = function(e) 
+    {
+      imp <- data
+    }
+  )
   data<-matrix(unlist(imp), ncol = ncol(imp))
+  
+  for(i in malas){
+    if(i<2){
+      data <- cbind(rep(0, length(data[1,])), data)
+    }
+    else{
+      if(i>=length(data[1,])){
+        data <- cbind(data[,1:length(data[1,])], rep(0, length(data[1,])))
+      }
+      else{
+        data <- cbind(data[,1:i-1], rep(values[1], length(data[1,])), data[,(i):length(data[1,])])
+        values<-values[-1]
+      }
+    }
+  }
   
   return(cbind(data, class))
 }
 
-i<-0;j<-0;k<-0;p<-0;lim<-276;dir<-"/home/unai/Escritorio/DiscreteCode/Data/"
+i<-3;j<-0;k<-13;p<-4;lim<-844;dir<-"/home/unai/Escritorio/DiscreteCode/Data/"
 
 
 i <- strtoi(args[1])
@@ -59,9 +80,10 @@ options(warn=-1)
 path<-paste(i,"-",j, "-", k, "-", p, ".data", sep = "")
 
 data<-read1(dir, path)
+data1<-data[1:lim,]
+data1<-mice1(dir, path, p, data[1:lim,], k)
+data2<-data[(lim+1):length(data[,1]),]
+data2<-mice1(dir, path, p, data[(lim+1):length(data[,1]),], k)
 
-data1<-mice1(dir, path, p, data[1:lim,])
-data2<-mice1(dir, path, p, data[(lim+1):length(data[,1]),])
-
-write1(paste(dir, path), "6", p, rbind(data1, data2))
+write1(paste(dir, i,"-",j, "-", k, "-", p, "-6", ".data", sep = ""), p, rbind(data1, data2))
 
