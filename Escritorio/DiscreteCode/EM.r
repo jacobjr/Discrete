@@ -26,9 +26,16 @@ EMBoot<-function(dir, path, m, part, data, k){
   malas<-c()
   values<-c()
   for(i in 1:length(data[1,])){
+    print(values)
+    print(i)
     if(2 > length(levels(factor(data[,i]))))
+    {
       malas[length(malas)+1]<-i
-      values[length(values)]<-levels(factor(data[,i]))[1]
+      if(is.nan(levels(factor(data[,i]))[1]))
+        values[length(values)+1]<-0
+      else
+        values[length(values)+1]<-as.integer(levels(factor(data[,i]))[1])
+    }
   }
   
   print(malas)
@@ -55,11 +62,11 @@ EMBoot<-function(dir, path, m, part, data, k){
       data <- cbind(rep(0, length(data[1,])), data)
     }
     else{
-      if(i>=length(data[1,])){
+      if(i>=length(data[1,])+length(malas)){
         data <- cbind(data[,1:length(data[1,])], rep(0, length(data[1,])))
       }
       else{
-        data <- cbind(data[,1:i-1], rep(values[1], length(data[1,])), data[,(i):length(data[1,])])
+        data <- cbind(data[,1:i-1], rep(values[1], length(data[,1])), data[,(i):length(data[1,])])
         values<-values[-1]
       }
     }
@@ -67,8 +74,8 @@ EMBoot<-function(dir, path, m, part, data, k){
   
   return(cbind(data, class))
 }
-
-i<-3;j<-0;k<-13;p<-4;lim<-844;dir<-"/home/unai/Escritorio/DiscreteCode/Data/"
+#DB, MD, Inst, Fold
+i<-8;j<-3;k<-6;p<-1;lim<-376;dir<-"/home/unai/Escritorio/DiscreteCode/Data/"
 
 
 i <- strtoi(args[1])

@@ -11,23 +11,35 @@ write1<-function(path, method, data){
   write(t(data), path, ncolumns = ncol(data), sep = ",")
 }
 
-
 HD<-function(dir, path, part, data, k){
   
+  suppressPackageStartupMessages(library(HotDeckImputation))
+  
+  set.seed(k)
+  
   class<-data[,length(data[1,])]
+  
   data<-data[,-length(data[1,])]
   
   malas<-c()
   values<-c()
   for(i in 1:length(data[1,])){
+    print(values)
+    print(i)
     if(2 > length(levels(factor(data[,i]))))
+    {
       malas[length(malas)+1]<-i
-    values[length(values)]<-levels(factor(data[,i]))[1]
+      if(is.nan(levels(factor(data[,i]))[1]))
+        values[length(values)+1]<-0
+      else
+        values[length(values)+1]<-as.integer(levels(factor(data[,i]))[1])
+    }
   }
   
   print(malas)
   if(length(malas)>0)
     data<-data[,-malas]
+  
   x<-length(data[,1])
   
   suppressPackageStartupMessages(library(HotDeckImputation))
@@ -43,18 +55,17 @@ HD<-function(dir, path, part, data, k){
       data <- cbind(rep(0, length(data[1,])), data)
     }
     else{
-      if(i>=length(data[1,])){
+      if(i>=length(data[1,])+length(malas)){
         data <- cbind(data[,1:length(data[1,])], rep(0, length(data[1,])))
       }
       else{
-        data <- cbind(data[,1:i-1], rep(values[1], length(data[1,])), data[,(i):length(data[1,])])
+        data <- cbind(data[,1:i-1], rep(values[1], length(data[,1])), data[,(i):length(data[1,])])
         values<-values[-1]
       }
     }
   }
   
   return(cbind(data, class))
-  
 }
 
 i<-0;j<-0;k<-0;p<-0;lim<-676;dir<-"/home/unai/Escritorio/DiscreteCode/Data/"

@@ -12,7 +12,7 @@ write1<-function(path, method, data){
   write(t(data), path, ncolumns = ncol(data), sep = ",")
 }
 
-mice1<-function(dir, path, p, data, k){
+mice1<-function(dir, path, part, data, k){
   
   suppressPackageStartupMessages(library(mice))
   
@@ -25,9 +25,16 @@ mice1<-function(dir, path, p, data, k){
   malas<-c()
   values<-c()
   for(i in 1:length(data[1,])){
+    print(values)
+    print(i)
     if(2 > length(levels(factor(data[,i]))))
+    {
       malas[length(malas)+1]<-i
-    values[length(values)]<-levels(factor(data[,i]))[1]
+      if(is.nan(levels(factor(data[,i]))[1]))
+        values[length(values)+1]<-0
+      else
+        values[length(values)+1]<-as.integer(levels(factor(data[,i]))[1])
+    }
   }
   
   print(malas)
@@ -38,25 +45,21 @@ mice1<-function(dir, path, p, data, k){
   
   data<-matrix(as.numeric(data), nrow = x)
   
-  tryCatch(
-    imp <- complete(mice(data, print = FALSE, seed = k)),
-    error = function(e) 
-    {
-      imp <- data
-    }
-  )
-  data<-matrix(unlist(imp), ncol = ncol(imp))
+  if(any(is.na(data))){
+    imp <- complete(mice(data, print = FALSE, seed = k))
+    data<-matrix(unlist(imp), ncol = ncol(imp))
+  }
   
   for(i in malas){
     if(i<2){
       data <- cbind(rep(0, length(data[1,])), data)
     }
     else{
-      if(i>=length(data[1,])){
+      if(i>=length(data[1,])+length(malas)){
         data <- cbind(data[,1:length(data[1,])], rep(0, length(data[1,])))
       }
       else{
-        data <- cbind(data[,1:i-1], rep(values[1], length(data[1,])), data[,(i):length(data[1,])])
+        data <- cbind(data[,1:i-1], rep(values[1], length(data[,1])), data[,(i):length(data[1,])])
         values<-values[-1]
       }
     }

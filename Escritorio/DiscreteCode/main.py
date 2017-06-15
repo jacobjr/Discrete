@@ -39,7 +39,7 @@ def generateMDfiles(instances):
         os.makedirs("Data")
 
     # Files with MD are generated with xyz.data names, representing x <- database, y <- MDtype and z<-instance
-    for i in range(0, len(dbs)):
+    for i in [0, 9]: #range(0, len(dbs)):
         for j in range(0, len(MDT)):
             for k in range(0, instances):
                 # In this function MD is introduced apart from reading (watch inoutmd.py)
@@ -56,7 +56,7 @@ def generateImputeds(instances):
     """
     # Previous files are filled in, xyzn.data names, continuing xyz the same, and being n <- imputation method
     print("Imputing MD files started at " + str(datetime.datetime.now()))
-    for i in range(0, len(dbs)):
+    for i in [0, 9]: #range(0, len(dbs)):
         for j in range(0, len(MDT)):
             for k in range(0, instances):
                 imputation(i, j, k)  # see (impute.py)
@@ -81,33 +81,11 @@ def generateAccuracies(instances, folds, i0, j0, k0, n0):
     print("Classifying imputed files started at " + str(datetime.datetime.now()))
 
     # This makes it possible to continue an execution in case it needed to be stopped (see main function).
-    if i0 == 0 and j0 == 0 and k0 == 0 and n0 == 0:  # If we start from the beginning, erase content in Output.csv
-        text_file = open("Output.csv", "w")
-    else:
-        text_file = open("Output.csv", "a")  # else, append
-    act = False
-    for i in range(0, len(dbs)):
+    for i in [0,9]: #range(2, len(dbs)):
         for j in range(0, len(MDT)):
-            for k in range(0, instances):
+            for k in range(0, 30):
                 for n in range(0, len(methods)):
-                    if i == i0 and j == j0 and k == k0 and n == n0:
-                        act = True
-                    if act:
-                        path = str(i) + "-" + str(j) + "-" + str(k) + "-" + str(
-                            n) + ".data"  # Path creation for imputed file
-                        acc = classification(i, j, k, n, [0,1,2,3,4,5,7,8,9,10,11,12,13],
-                                             folds)  # Classification algorithms execution (see classify.py)
-                        for m in range(0, len(algorithms)):
-                            # Write in Output.csv
-                            text_file.write(
-                                str(i) + "," + str(j) + "," + str(k) + "," + str(n) + "," + str(m) + "," + str(
-                                    acc[m]) + "\n")
-                            # ########These three lines are for being able to observe progress
-                            text_file.flush()
-                            os.fsync(text_file)
-
-                            #############################################################
-    text_file.close()
+                    classification(i, j, k, n, [4], folds)  # Classification algorithms execution (see classify.py)
     print("And finished at " + str(datetime.datetime.now()))
 
 
@@ -120,12 +98,14 @@ if __name__ == '__main__':
     args = parser.parse_args()
     instances = args.integers[0]  # Instances for each BD with the same MD type
 
-    #generateMDfiles(instances)
+    generateMDfiles(instances)
 
-    #generateImputeds(instances)
+    generateImputeds(instances)
     folds = 5
 
     # Four parameters as start point. To start from the beginning, four 0s, as above.
     # in case that last execution finished at (0,1,2,3,4) continuing point is (0,1,2,3,5)
     # generateAccuracies(instances, 3, 0, 0, 0) This will start in the 4th database
-    generateAccuracies(instances, folds, 0, 0, 0, 0)  # This will start from the beginning
+    #generateAccuracies(instances, folds, 0, 0, 0, 0)  # This will start from the beginning
+
+

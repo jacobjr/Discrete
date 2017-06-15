@@ -14,7 +14,7 @@ import os
 from sklearn import preprocessing
 from sklearn.model_selection import StratifiedKFold
 
-percent = 7  # This work considers introducing 7% of missing values in MD free DBs
+percent = 28  # This work considers introducing 7% of missing values in MD free DBs
 
 # ####################### Missing Data inserting functions ###################
 
@@ -34,8 +34,8 @@ def insertMuOV(data):
     x = data.shape[0]
     y = data.shape[1]
     obs = []
-    y1 = random.sample(range(0, y), 3)  # Select the features losing their values
-    while len(obs) < (percent*x*y/100)/3:
+    y1 = random.sample(range(0, y), 12)  # Select the features losing their values
+    while len(obs) < (percent*x*y/100)/12:
         obs.append(random.randint(0, x-1))  # Since the "causative" is unobserved, the observations missing their values are selected randomly
     for i in range(0, len(obs)):  # For the selected observations (above)
         for j in range(0, len(y1)):  # For the selected features
@@ -49,12 +49,12 @@ def insertMIV(data):
     x = data.shape[0]
     y = data.shape[1]
     obs = []
-    y1 = random.sample(range(0, y), 3)  # Select which features will lose values
+    y1 = random.sample(range(0, y), 12)  # Select which features will lose values
     for i in range(0, len(y1)):
 
         # Auxiliary variable, to select the observations losing values, without modifying them yet.
         auxy = copy.copy(data[:, y1[i]])
-        while len(obs) < (percent*y*x/100)/3:
+        while len(obs) < (percent*y*x/100)/12:
             obs.append(np.argmin(auxy))
             auxy[obs[len(obs)-1]] = 999999
 
@@ -69,11 +69,11 @@ def insertMAR(data):
     x = data.shape[0]
     y = data.shape[1]
     obs = []
-    y1 = random.sample(range(0, y), 4)  # First element in y1 will be the "causative" variable, remaining three will lose values
+    y1 = random.sample(range(0, y), 13)  # First element in y1 will be the "causative" variable, remaining three will lose values
 
     # Auxiliary causative variable, to select the observations losing values, without modifying the causative.
     auxy = copy.copy(data[:, y1[0]])
-    while len(obs) < (percent*x*y/100)/3:
+    while len(obs) < (percent*x*y/100)/12:
         obs.append(np.argmin(auxy))
         auxy[obs[len(obs)-1]] = 999999
 
@@ -105,10 +105,12 @@ def read(path, delimiter=","):
     :return: Read file
     """
     dir = os.path.dirname(__file__)
-    x = np.genfromtxt(dir + "/" + path, delimiter=delimiter, dtype=str)
+    x = np.genfromtxt(dir + "/" + path, delimiter=delimiter, dtype=str) #missing_values=["NaN", "NA"])
+
     le = preprocessing.LabelEncoder()
     # labels = []
     for i in range(0, x.shape[1]):
+        #print(x[:, i])
         if not is_number(x[0, i]):
             le.fit(x[:, i])
             x[:, i] = (le.transform(x[:, i])).astype("float32")
@@ -154,7 +156,6 @@ def getMDfiles(path, index, MDT, k, clas, introduceMD, seed):
     i = 0
 
     skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=seed)
-
     for train_index, test_index in skf.split(x, y):
         # Separate
         x_train = x[train_index]
@@ -185,7 +186,7 @@ def getMDfiles(path, index, MDT, k, clas, introduceMD, seed):
 
         aux = np.array(path.split("."))
  
-        npath = "Data/" + str(index) + "-" + str(MDT) + "-" + str(k) + "-" + str(i) + "." + aux[len(aux)-1]
+        npath = "Data28/" + str(index) + "-" + str(MDT) + "-" + str(k) + "-" + str(i) + "." + aux[len(aux)-1]
         i += 1
         df = pd.DataFrame(x_tot)
 
