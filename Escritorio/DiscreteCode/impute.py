@@ -34,7 +34,7 @@ def imputation(i, j, k):
     for part in range(0, 5):
         # Path creation and reading
         path = str(i) + "-" + str(j) + "-" + str(k) + "-" + str(part) + ".data"
-        dataset = read("/Data28/" + path)
+        dataset = read("/DataMD/" + path)
         # Class not used, in order to get consistent results when classifying
         y = dataset[:, dataset.shape[1]-1]
         dataset = np.delete(dataset, dataset.shape[1]-1,1)
@@ -56,7 +56,7 @@ def imputation(i, j, k):
                 # Concatenate with class
                 x = np.column_stack((x, y))
                 # Write
-                npath = "Data28/" + str(i) + "-" + str(j) + "-" + str(k) + "-" + str(part) + "-" + str(w) + ".data"
+                npath = "DataMD/" + str(i) + "-" + str(j) + "-" + str(k) + "-" + str(part) + "-" + str(w) + ".data"
                 np.savetxt(npath, x, delimiter=",", fmt='%10.5f')
             except:
                 f.write(methods[w] + " " + str(i) + " " + str(j) + " " + str(k) + " " + str(part) + "\n")
@@ -78,7 +78,7 @@ def imputation(i, j, k):
             data = np.concatenate((data, np.expand_dims(y, axis=1)), axis=1)  # Class concatenate
 
             # Write
-            npath = "Data28/" + str(i) + "-" + str(j) + "-" + str(k) + "-" + str(part) + "-" + str(3) + ".data"
+            npath = "DataMD/" + str(i) + "-" + str(j) + "-" + str(k) + "-" + str(part) + "-" + str(3) + ".data"
             np.savetxt(npath, data, delimiter=",", fmt='%10.5f')
         except:
             f.write("LVCF " + str(i) + " " + str(j) + " " + str(k) + " " + str(part) + "\n")
@@ -101,22 +101,22 @@ def imputation(i, j, k):
             data = np.concatenate((data, np.expand_dims(y, axis=1)), axis=1)  # Class
 
             # Write
-            npath = "Data28/" + str(i) + "-" + str(j) + "-" + str(k) + "-" + str(part) + "-" + str(4) + ".data"
+            npath = "DataMD/" + str(i) + "-" + str(j) + "-" + str(k) + "-" + str(part) + "-" + str(4) + ".data"
             np.savetxt(npath, data, delimiter=",", fmt='%10.5f')
         except:
             f.write('poly {0} {1} {2} {3}\n'.format(str(i), str(j), str(k), str(part)))
 
         # R imputation methods
         try:
-            check_output('Rscript hd.r ' + str(i) + " " + str(j) + " " + str(k) + " " + str(part) + " " + str(train.shape[0]) + " " + os.path.dirname(os.path.abspath(__file__)) + "/Data28/", shell=True)
+            check_output('Rscript hd.r ' + str(i) + " " + str(j) + " " + str(k) + " " + str(part) + " " + str(train.shape[0]) + " " + os.path.dirname(os.path.abspath(__file__)) + "/DataMD/", shell=True)
         except:
             f.write('hd ' + str(i) + " " + str(j) + " " + str(k) + " " + str(part) + "\n")
         try:
-            check_output('Rscript mice.r ' + str(i) + " " + str(j) + " " + str(k) + " " + str(part) + " " + str(train.shape[0]) + " " + os.path.dirname(os.path.abspath(__file__)) + "/Data28/", shell=True)
+            check_output('Rscript mice.r ' + str(i) + " " + str(j) + " " + str(k) + " " + str(part) + " " + str(train.shape[0]) + " " + os.path.dirname(os.path.abspath(__file__)) + "/DataMD/", shell=True)
         except:
             f.write('mice ' + str(i) + " " + str(j) + " " + str(k) + " " + str(part) + "\n")
         try:
-            check_output('Rscript EM.r ' + str(i) + " " + str(j) + " " + str(k) + " " + str(part) + " " + str(train.shape[0]) + " " + os.path.dirname(os.path.abspath(__file__)) + "/Data28/", shell=True)
+            check_output('Rscript EM.r ' + str(i) + " " + str(j) + " " + str(k) + " " + str(part) + " " + str(train.shape[0]) + " " + os.path.dirname(os.path.abspath(__file__)) + "/DataMD/", shell=True)
         except:
             f.write('EM ' + str(i) + " " + str(j) + " " + str(k) + " " + str(part) + "\n")
 

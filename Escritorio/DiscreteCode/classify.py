@@ -50,7 +50,7 @@ def classification(i, j, k, n, classifiers, folds):
             else:
                 res.append(classify(i, j, k, n, c, folds)[1])  # Classify
         res = np.array(res)
-        np.savetxt("Classifications28NN/{0}-{1}-{2}-{3}.data".format(str(i), str(j), str(k), str(n)), res, fmt='%i')
+        np.savetxt("ClassificationsMD/{0}-{1}-{2}-{3}.data".format(str(i), str(j), str(k), str(n)), res, fmt='%i')
     except:
         print("{0}-{1}-{2}-{3}.data".format(str(i), str(j), str(k), str(n)))
 
@@ -81,7 +81,7 @@ def classify(i, j, k, n, c, folds):
     elif c == 3:
         clf = QuadraticDiscriminantAnalysis(reg_param=0.01)
     elif c == 4:
-        x = read("Data28/{0}-{1}-{2}-{3}.data".format(str(i), str(j), str(k), "0"), delimiter=",")
+        x = read("DataMD/{0}-{1}-{2}-{3}.data".format(str(i), str(j), str(k), "0"), delimiter=",")
         size = x.shape[0]
         feature_columns = [tf.contrib.layers.real_valued_column("", dimension=x.shape[1]-1)]
         clf = tf.contrib.learn.DNNClassifier(feature_columns=feature_columns, hidden_units=[int(size/3*2), int(size/3)], n_classes=len(set(x[:, -1]))+1)
@@ -112,7 +112,7 @@ def classify(i, j, k, n, c, folds):
 
     for fold in range(0, folds):
         # For each stratified fold, we have one file. We read it.
-        path = "Data28/" + str(i) + "-" + str(j) + "-" + str(k) + "-" + str(fold) + "-" + str(n) + ".data"
+        path = "DataMD/" + str(i) + "-" + str(j) + "-" + str(k) + "-" + str(fold) + "-" + str(n) + ".data"
         x = read(path)
         x = preprocessing.Imputer().fit_transform(x)
         x[x == np.nan] = 0

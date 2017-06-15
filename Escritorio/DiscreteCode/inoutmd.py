@@ -14,13 +14,14 @@ import os
 from sklearn import preprocessing
 from sklearn.model_selection import StratifiedKFold
 
-percent = 28  # This work considers introducing 7% of missing values in MD free DBs
+percent = 7  # This work considers introducing 7% of missing values in MD free DBs
+nVar = 3
 
 # ####################### Missing Data inserting functions ###################
 
 
 # This function introduces MCAR type MD.
-def insertMCAR(data):
+def insertMCAR(data, per):
     x = data.shape[0]
     y = data.shape[1]
     for i in range(0, x*y*percent//100):
@@ -30,12 +31,12 @@ def insertMCAR(data):
 
 
 # This function introduces MuOV type MD
-def insertMuOV(data):
+def insertMuOV(data, per):
     x = data.shape[0]
     y = data.shape[1]
     obs = []
-    y1 = random.sample(range(0, y), 12)  # Select the features losing their values
-    while len(obs) < (percent*x*y/100)/12:
+    y1 = random.sample(range(0, y), nVar*per)  # Select the features losing their values
+    while len(obs) < (percent*x*y/100)/nVar*per:
         obs.append(random.randint(0, x-1))  # Since the "causative" is unobserved, the observations missing their values are selected randomly
     for i in range(0, len(obs)):  # For the selected observations (above)
         for j in range(0, len(y1)):  # For the selected features
@@ -45,16 +46,16 @@ def insertMuOV(data):
 
 
 # This function introduces MIV type MD
-def insertMIV(data):
+def insertMIV(data, per):
     x = data.shape[0]
     y = data.shape[1]
     obs = []
-    y1 = random.sample(range(0, y), 12)  # Select which features will lose values
+    y1 = random.sample(range(0, y), nVar*per)  # Select which features will lose values
     for i in range(0, len(y1)):
 
         # Auxiliary variable, to select the observations losing values, without modifying them yet.
         auxy = copy.copy(data[:, y1[i]])
-        while len(obs) < (percent*y*x/100)/12:
+        while len(obs) < (percent*y*x/100)/nVar*per:
             obs.append(np.argmin(auxy))
             auxy[obs[len(obs)-1]] = 999999
 
@@ -65,15 +66,15 @@ def insertMIV(data):
 
 
 # This function introduces MAR type MD
-def insertMAR(data):
+def insertMAR(data, per):
     x = data.shape[0]
     y = data.shape[1]
     obs = []
-    y1 = random.sample(range(0, y), 13)  # First element in y1 will be the "causative" variable, remaining three will lose values
+    y1 = random.sample(range(0, y), nVar*per+1)  # First element in y1 will be the "causative" variable, remaining three will lose values
 
     # Auxiliary causative variable, to select the observations losing values, without modifying the causative.
     auxy = copy.copy(data[:, y1[0]])
-    while len(obs) < (percent*x*y/100)/12:
+    while len(obs) < (percent*x*y/100)/nVar*per:
         obs.append(np.argmin(auxy))
         auxy[obs[len(obs)-1]] = 999999
 
@@ -166,17 +167,17 @@ def getMDfiles(path, index, MDT, k, clas, introduceMD, seed):
         if introduceMD == 1:
             # Insert MD
             if MDT % 4 == 0:
-                x_train = insertMAR(x_train)
-                x_test = insertMAR(x_test)
+                x_train = insertMAR(x_train, 1)
+                x_test = insertMAR(x_test, 1)
             elif MDT % 4 == 1:
-                x_train = insertMCAR(x_train)
-                x_test = insertMCAR(x_test)
+                x_train = insertMCAR(x_train, 1)
+                x_test = insertMCAR(x_test, 1)
             elif MDT % 4 == 2:
-                x_train = insertMuOV(x_train)
-                x_test = insertMuOV(x_test)
+                x_train = insertMuOV(x_train, 1)
+                x_test = insertMuOV(x_test, 1)
             elif MDT % 4 == 3:
-                x_train = insertMIV(x_train)
-                x_test = insertMIV(x_test)
+                x_train = insertMIV(x_train, 1)
+                x_test = insertMIV(x_test, 1)
 
         # We always write first the training part and hen the testing part.
         x_tot = np.concatenate((x_train, x_test), axis=0)
@@ -186,7 +187,60 @@ def getMDfiles(path, index, MDT, k, clas, introduceMD, seed):
 
         aux = np.array(path.split("."))
  
-        npath = "Data28/" + str(index) + "-" + str(MDT) + "-" + str(k) + "-" + str(i) + "." + aux[len(aux)-1]
+        npath = "Data/" + str(index) + "-" + str(MDT) + "-" + str(k) + "-" + str(i) + "." + aux[len(aux)-1]
+        i += 1
+        df = pd.DataFrame(x_tot)
+
+        df.to_csv(npath, header = False, index = False, na_rep = "NaN")
+
+    return x, y
+
+def getMDfilesPercent(path, index, percent, k, clas, introduceMD, seed):
+
+    """
+
+    :param path: path of the file in which the data to be partially erased can be found
+    :param index: DB index
+    :param MDT: MDT index
+    :param k: instance index
+    :param clas: variable index where the class can be found
+    :param introduceMD: Whether MD is going to be introduced. See description above.
+    :param seed: Seed for random initialization
+    :return: Writes 5 versions of the dataset with different MD combinations, aiming for a stratified 5-fold
+    cross-validation.
+    """
+
+    random.seed(seed)
+
+    x = read("Data1/" + path)
+
+    # Assign the class to other variable.
+    y = x[:, clas]
+    x = np.delete(x, clas, 1)
+    i = 0
+
+    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=seed)
+    for train_index, test_index in skf.split(x, y):
+        # Separate
+        x_train = x[train_index]
+        x_test = x[test_index]
+        y_train = y[train_index]
+        y_test = y[test_index]
+
+        if introduceMD == 1:
+            x_train = insertMCAR(x_train, percent)
+            x_test = insertMCAR(x_test, percent)
+
+
+        # We always write first the training part and hen the testing part.
+        x_tot = np.concatenate((x_train, x_test), axis=0)
+        y_tot = np.concatenate((y_train, y_test))
+
+        x_tot = np.column_stack((x_tot,y_tot))
+
+        aux = np.array(path.split("."))
+
+        npath = "DataMD/" + str(index) + "-" + str(percent) + "-" + str(k) + "-" + str(i) + "." + aux[len(aux)-1]
         i += 1
         df = pd.DataFrame(x_tot)
 
